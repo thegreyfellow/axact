@@ -1,4 +1,8 @@
 use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use axum::Json;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -15,25 +19,30 @@ async fn main() {
     let state = AppState {
         sys: Arc::new(Mutex::new(System::new())),
     };
-    let router = Router::new().route("/", get(root_get)).with_state(state);
+    let router = Router::new()
+        .route("/", get(root_get))
+        .route("/api/cpus", get(cpus_get))
+        .with_state(state);
     let server = Server::bind(&"0.0.0.0:3000".parse().unwrap()).serve(router.into_make_service());
     let addr = server.local_addr();
     println!("Listening on http://{}", addr);
 
     server.await.expect("Failed to start server");
 }
+async fn root_get() -> &'static str {
+    "Hello, world!"
+}
 
-async fn root_get(State(state): State<AppState>) -> String {
-    use std::fmt::Write;
-
-    let mut cpus = String::new();
+async fn cpus_get(State(state): State<AppState>) -> impl IntoResponse {
     let mut sys = state.sys.lock().unwrap();
     sys.refresh_cpu();
 
-    for (i, cpu) in sys.cpus().iter().enumerate() {
-        let i = i + 1;
-        writeln!(cpus, "CPU {}: {}%", i, cpu.cpu_usage()).unwrap();
-    }
+    let body: BTreeMap<usize, f32> = sys
+        .cpus()
+        .iter()
+        .enumerate()
+        .map(|(i, c)| (i, c.cpu_usage()))
+        .collect();
 
-    cpus
+    (StatusCode::OK, Json(body))
 }
