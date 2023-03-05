@@ -2,6 +2,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::Html;
 use axum::response::IntoResponse;
+use axum::response::Response;
 use axum::Json;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -22,6 +23,7 @@ async fn main() {
     };
     let router = Router::new()
         .route("/", get(root_get))
+        .route("/index.js", get(index_js_get))
         .route("/api/cpus", get(cpus_get))
         .with_state(state);
     let server = Server::bind(&"0.0.0.0:3000".parse().unwrap()).serve(router.into_make_service());
@@ -35,6 +37,15 @@ async fn root_get() -> Html<String> {
         .await
         .unwrap();
     Html(html)
+}
+
+async fn index_js_get() -> impl IntoResponse {
+    let js = tokio::fs::read_to_string("static/index.js").await.unwrap();
+
+    Response::builder()
+        .header("content-type", "application/javascript;charset=utf-8")
+        .body(js)
+        .unwrap()
 }
 
 async fn cpus_get(State(state): State<AppState>) -> impl IntoResponse {
