@@ -23,7 +23,7 @@ async fn main() {
     };
     let router = Router::new()
         .route("/", get(root_get))
-        .route("/index.js", get(index_js_get))
+        .route("/index.mjs", get(index_js_get))
         .route("/api/cpus", get(cpus_get))
         .with_state(state);
     let server = Server::bind(&"0.0.0.0:3000".parse().unwrap()).serve(router.into_make_service());
@@ -40,7 +40,7 @@ async fn root_get() -> Html<String> {
 }
 
 async fn index_js_get() -> impl IntoResponse {
-    let js = tokio::fs::read_to_string("static/index.js").await.unwrap();
+    let js = tokio::fs::read_to_string("static/index.mjs").await.unwrap();
 
     Response::builder()
         .header("content-type", "application/javascript;charset=utf-8")
@@ -52,6 +52,9 @@ async fn cpus_get(State(state): State<AppState>) -> impl IntoResponse {
     let mut sys = state.sys.lock().unwrap();
     sys.refresh_cpu();
 
+    // NOTE: The reason we use a BTreeMap is because it is ordered by key.
+    // This is important because we want to ensure that the order of the
+    // data is consistent.
     let body: BTreeMap<usize, f32> = sys
         .cpus()
         .iter()
