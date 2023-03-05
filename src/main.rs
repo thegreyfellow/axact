@@ -1,5 +1,6 @@
 use axum::extract::State;
 use axum::http::StatusCode;
+use axum::response::Html;
 use axum::response::IntoResponse;
 use axum::Json;
 use std::collections::BTreeMap;
@@ -29,8 +30,11 @@ async fn main() {
 
     server.await.expect("Failed to start server");
 }
-async fn root_get() -> &'static str {
-    "Hello, world!"
+async fn root_get() -> Html<String> {
+    let html = tokio::fs::read_to_string("static/index.html")
+        .await
+        .unwrap();
+    Html(html)
 }
 
 async fn cpus_get(State(state): State<AppState>) -> impl IntoResponse {
